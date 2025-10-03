@@ -1,0 +1,3 @@
+# .gitkeep placeholder for trust anchors directory
+# Place C2PA trust anchor certificates here
+# See README.md in this directory for details

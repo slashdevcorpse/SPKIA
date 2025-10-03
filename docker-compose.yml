@@ -1,0 +1,115 @@
+services:
+  # MongoDB Database
+  mongo:
+    image: mongo:7.0
+    container_name: spkia-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: spkia
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./backend/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - spkia-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/spkia --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis (for future caching/queue)
+  redis:
+    image: redis:7-alpine
+    container_name: spkia-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - spkia-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: spkia-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017
+      - MONGODB_DB_NAME=spkia
+      - REDIS_URL=redis://redis:6379
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+    env_file:
+      - .env
+    volumes:
+      - ./backend/app:/app/app
+      - ./models:/app/models
+      - ./trust_anchors:/app/trust_anchors
+      - ./sensor_pki_anchors:/app/sensor_pki_anchors
+      - ./uploads:/app/uploads
+      - ./temp:/app/temp
+    depends_on:
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - spkia-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Use empty string to make frontend use relative URLs (/api)
+        # Nginx will proxy these to the backend
+        VITE_API_BASE_URL: ""
+    container_name: spkia-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - spkia-network
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: spkia-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - spkia-network
+
+volumes:
+  mongo-data:
+    driver: local
+
+networks:
+  spkia-network:
+    driver: bridge

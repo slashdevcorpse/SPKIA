@@ -1,0 +1,3 @@
+# SPKIA Test Image
+
+This is a test file for the SPKIA verification system.
