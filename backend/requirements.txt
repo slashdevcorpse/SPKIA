@@ -6,7 +6,7 @@ pydantic==2.5.3
 pydantic-settings==2.1.0
 
 # Taipy for UI, orchestration, and scenario management
-taipy==3.1.1
+taipy==4.0.0
 taipy-gui==3.1.1
 taipy-core==3.1.1
 taipy-rest==3.1.1
