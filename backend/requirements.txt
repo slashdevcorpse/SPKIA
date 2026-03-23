@@ -18,7 +18,7 @@ pymongo==4.6.1
 # Cryptography & Security
 cryptography==42.0.0
 pycose==1.0.1
-cbor2==5.5.1
+cbor2==5.9.0
 python-jose[cryptography]==3.3.0
 
 # C2PA
